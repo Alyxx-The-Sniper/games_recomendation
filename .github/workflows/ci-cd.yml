@@ -1,0 +1,109 @@
+name: 'CI / CD Pipeline'
+
+# 1) Trigger on push or PR to main
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master] # others forked 
+
+# 2) Only one pipeline per branch at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true      # if you push a second commit before the first run finishes, GitHub will cancel the older run. This saves time & resources.
+
+jobs:
+  # 3) Lint (skip this for now.. this is a demo only)
+#   lint:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       - name: Setup Python
+#         uses: actions/setup-python@v4
+#         with:
+#           python-version: '3.10'
+
+#       - name: Cache pip
+#         uses: actions/cache@v3
+#         with:
+#           path: ~/.cache/pip
+#           key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+#       - name: Install dependencies
+#         run: |
+#           pip install --upgrade pip
+#           pip install -r requirements.txt
+
+#       - name: Lint with flake8
+#         run: flake8 .
+
+  # 4) Test (runs only if lint passed)
+  test:
+    # needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        run: pytest --maxfail=1 --disable-warnings -q
+
+  # 5) Build & push Docker image
+  docker_build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU (for multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          no-cache: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/garment_productivity_v2:latest
+
+  # 6) Deploy to Render (only on push to master)
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: docker_build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
