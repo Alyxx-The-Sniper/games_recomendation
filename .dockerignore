@@ -1,0 +1,13 @@
+
+__pycache__/*.py[cod]
+.pytest_cache/
+.venv/
+.git
+.gitignore
+Dockerfile
+
+# we dont need fetching and training in docker container
+fetch_data_v1.py
+fetch_data_v1.py
+game_reco.ipynb
+train.py
