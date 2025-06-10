@@ -3,9 +3,9 @@ name: 'CI / CD Pipeline'
 # 1) Trigger on push or PR to main
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master] # others forked 
+    branches: [main] # others forked 
 
 # 2) Only one pipeline per branch at a time
 concurrency:
@@ -96,9 +96,9 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/garment_productivity_v2:latest
 
-  # 6) Deploy to Render (only on push to master)
+  # 6) Deploy to Render (only on push to main)
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: docker_build
     runs-on: ubuntu-latest
     steps:
