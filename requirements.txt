@@ -1,12 +1,15 @@
+# Use CPU-only PyTorch wheels
+--find-links https://download.pytorch.org/whl/torch_stable.html
+
 faiss-cpu==1.11.0
 # faiss-gpu==1.7.2
 
-# Hugging-Face libraries
+# Hugging Face libraries
 datasets==3.6.0
 transformers==4.52.4
 
-# PyTorch 
-torch==2.7.1
+# PyTorch (CPU-only build)
+torch==2.7.1+cpu
 
 # Utility libraries
 tqdm==4.67.1
@@ -14,7 +17,7 @@ requests==2.32.3
 beautifulsoup4==4.13.4
 pandas==2.3.0
 Flask==3.1.1
-pytest== 8.4.0
+pytest==8.4.0
 
 # Docker
 gunicorn==23.0.0

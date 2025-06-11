@@ -1,31 +1,35 @@
-# Use a lightweight Python base image
-FROM python:3.9-slim
+# Stage 1: Build dependencies and wheels
+FROM python:3.9-slim-buster AS builder
 
-# Ensure Python output is not buffered, so we see logs in real time
+# Install build tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /install
+
+# Copy requirements and build wheels
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip wheel --no-cache-dir --no-deps -r requirements.txt
+
+# Stage 2: Final runtime image
+FROM python:3.9-slim-buster
+
+# Prevent Python output buffering
 ENV PYTHONUNBUFFERED=1
 
-# Set /app as working directory
 WORKDIR /app
 
-# 1) Copy only requirements, install dependencies (cached if requirements.txt is unchanged)
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy built wheels and install
+COPY --from=builder /install/*.whl /wheels/
+RUN pip install --no-cache-dir /wheels/*.whl \
+    && rm -rf /wheels
 
-# 2) Copy the rest of the application source
+# Copy application code
 COPY . .
 
-# (Optional) If your ML pipeline needs build tools, uncomment:
-# RUN apt-get update && apt-get install -y --no-install-recommends \
-#         build-essential \
-#         python3-dev \
-#     && rm -rf /var/lib/apt/lists/*
+# Expose Flask port\ nEXPOSE 5000
 
-# Expose the port Flask runs on (documentation)
-EXPOSE 5000
-
-# Run the Flask app when container starts
-# for developement usecase
-# CMD ["python", "app.py"]
-
-# for production usecase
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Run the app with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app", "--workers", "1", "--threads", "2", "--worker-class", "gthread"]
